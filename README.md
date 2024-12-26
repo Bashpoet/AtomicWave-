@@ -1,38 +1,71 @@
-This project is a lean, mean key-value store, written in C, that fuses an in-memory hash index with a disk-based datastore. We strive for the ACID Holy Grail—(A)tomic commits, (C)onsistent updates, (I)solation from concurrency mishaps, and (D)urability via a write-ahead log (WAL).
+# AtomicWave: A Lean, Mean, In-Memory Key-Value Store (with Disk Persistence)
 
-Think of it as a proving ground for modern database fundamentals, sporting:
+**AtomicWave** is a lightweight key-value database built in C, designed to be a hands-on learning tool and a platform for experimentation with core database concepts. It combines an in-memory hash index for fast lookups with a disk-based data store for persistence.  This project aims to provide a clear and understandable implementation of fundamental database principles while striving for the coveted **ACID** properties:
 
-Transaction Logging: Every PUT or DELETE is appended to a WAL. Commit or Rollback? We’ve got you covered.
-Hash-Based Index: A straightforward in-memory hash that directs you to the right place nearly every time.
-Naive Concurrency: A global mutex encloses the entire system. (If you’re the adventurous type, dig into finer-grained locks, or open the concurrency floodgates via read-write locks. We won’t judge.)
-Data File Storage: Each record is appended to a .data file for easy retrieval, leaving a clear trail of your kv expansions and shenanigans.
-Architecture at a Glance
-Index: Buckets of singly linked lists store your key-value pairs in memory, anchored by a simple (but classic) DJB hash function.
-Log: All operations are written out to the .log file before touching the data store. That’s the WAL principle, ensuring data resilience even when the gremlins cause power failures.
-Transactions: Atomic blocks revolve around BEGIN, COMMIT, and ROLLBACK. This sample code only logs them, but you can extend it to do real-time undone operations if your data demands unbreakable consistency.
-Persistence: The .data file is structured by appending Record structs. You’d typically want extra metadata (checksums, lengths, version IDs) in a serious system.
-Feel free to expand or refine any portion—from forging B+ trees in place of the simplistic hash to layering advanced concurrency or offering fancy user-friendly analytics. This is your sandbox to experiment with the building blocks of data integrity, concurrency, and storage design.
+*   **Atomicity:**  All operations within a transaction succeed or fail as a single unit.
+*   **Consistency:** Data remains valid and adheres to defined rules after each transaction.
+*   **Isolation:** Concurrent transactions operate as if they were executed sequentially, preventing interference.
+*   **Durability:** Committed data survives even system failures, thanks to our Write-Ahead Log (WAL).
 
-Getting Started
-Clone the repository:
-bash
-Copy code
-git clone https://github.com/yourusername/YourDBName.git
-Build it:
-bash
-Copy code
-cd YourDBName
-gcc -pthread -o kvstore main.c
-Run the example:
-bash
-Copy code
-./kvstore
-You’ll see output indicating the PUT, the COMMIT, a few GETs, then a sneaky DELETE that gets rolled back, proving our micro-transactional muscle.
+## Core Features & Design Philosophy
 
-Next Steps & Ideas
-Enhanced Recovery: On startup, read the WAL in detail. Reapply or revert operations that were left in limbo.
-Multithreaded Concurrency: Replace the single lock with a per-bucket spinlock or a read-write lock. If you’re confident, explore multi-version concurrency control to handle simultaneous queries and writes.
-Index Upgrades: Switch from a hash to a B+ tree or an LSM tree for faster lookups and simpler merges.
-Sharding & Replication: Scale out horizontally or replicate your store to multiple nodes for improved fault tolerance.
-Mix, match, and marvel in your own database engineering feats!
+This project serves as a practical exploration of modern database fundamentals, including:
 
+*   **Write-Ahead Logging (WAL):**  Every data modification (`PUT` or `DELETE`) is first recorded in a persistent log file (`.log`). This ensures data durability and enables recovery in case of crashes or power outages.
+*   **In-Memory Hash Index:** A simple yet efficient hash index, powered by the classic DJB hash function, resides in memory to provide rapid key-based lookups.
+*   **Basic Transaction Support:**  Transactions are managed through `BEGIN`, `COMMIT`, and `ROLLBACK` operations. The current implementation logs these operations, paving the way for more sophisticated rollback/recovery mechanisms.
+*   **Disk-Based Data Storage:** Data records are appended to a `.data` file, providing a persistent record of all key-value pairs. This allows for data recovery and the ability to reload the database after a restart.
+*   **Concurrency Control (Rudimentary):**  Currently, a global mutex protects the entire system to ensure data consistency in a multi-threaded environment. (See "Next Steps & Ideas" for more advanced concurrency models to explore.)
+
+## Architecture at a Glance
+
+*   **Index:** An in-memory hash table organized into buckets of singly linked lists. Each bucket stores key-value pairs. Hashing, using the DJB function, distributes keys across buckets.
+*   **Log:** The `.log` file is the heart of our durability strategy.  All operations are appended to this file *before* they are applied to the data file. This ensures that we can recover from failures by replaying the log.
+*   **Transactions:** `BEGIN`, `COMMIT`, and `ROLLBACK` define the boundaries of atomic transactions. Extend the current logging implementation to include real undo operations for enhanced data integrity.
+*   **Persistence:** The `.data` file stores `Record` structs sequentially. In a production-ready system, you would likely enhance this with additional metadata (e.g., checksums, record lengths, version numbers) for robustness and efficient data management.
+
+## Getting Started
+
+1.  **Clone the Repository:**
+
+    ```bash
+    git clone [https://github.com/yourusername/AtomicWave.git](https://github.com/yourusername/AtomicWave.git)
+    ```
+
+2.  **Build the Project:**
+
+    ```bash
+    cd AtomicWave
+    gcc -pthread -o kvstore main.c
+    ```
+
+3.  **Run the Example:**
+
+    ```bash
+    ./kvstore
+    ```
+
+    You'll see output demonstrating basic operations: `PUT`, `COMMIT`, `GET`, and a `DELETE` followed by a `ROLLBACK`, showcasing the basic transactional behavior.
+
+## Next Steps & Ideas: Your Path to Database Mastery
+
+This project is a starting point. We encourage you to extend it and explore more advanced database concepts:
+
+*   **Enhanced Recovery:** Implement a robust recovery mechanism that reads the WAL on startup and intelligently reapplies or reverts incomplete transactions, ensuring data consistency after failures.
+*   **Advanced Concurrency Control:**
+    *   **Fine-Grained Locking:** Replace the global mutex with per-bucket or even per-record locks to increase concurrency.
+    *   **Read-Write Locks:** Allow multiple readers to access data concurrently while ensuring exclusive access for writers.
+    *   **Multi-Version Concurrency Control (MVCC):** Implement MVCC to enable non-blocking reads and greater parallelism for concurrent read and write operations.
+*   **Index Upgrades:**
+    *   **B+ Trees:**  Replace the hash index with a B+ tree for efficient range queries and ordered data retrieval.
+    *   **LSM Trees (Log-Structured Merge Trees):** Explore LSM trees for write-optimized performance, especially beneficial in write-heavy workloads.
+*   **Sharding and Replication:**
+    *   **Sharding:**  Distribute the data across multiple nodes (horizontal scaling) to improve performance and handle larger datasets.
+    *   **Replication:**  Create copies of the database on multiple nodes to enhance fault tolerance and read performance.
+*   **Data Integrity Enhancements:** Add checksums, record length validation, and versioning to the `.data` file format for increased robustness and error detection.
+*   **Query Language/API:** Implement a simple query language or a richer API to provide more flexible data access and manipulation.
+*   **Performance Profiling and Optimization:** Use profiling tools to identify bottlenecks and optimize critical sections of the code for improved performance.
+
+## Contribute!
+
+We welcome contributions! If you're passionate about databases and want to dive into the inner workings of a key-value store, feel free to fork the repository, experiment with these ideas, and submit pull requests. Let's build something awesome together!
